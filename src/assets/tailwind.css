@@ -1,3 +1,1 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind is imported via style.css using @import "tailwindcss" (v4) */

@@ -1,124 +1,237 @@
 <template>
-  <div class="container" ref="containerRef">
-    <!-- ส่วนหัว -->
-    <div class="header">
-      <h1>การประชุมประจำวัน</h1>
-      <div class="header-buttons">
-        <button @click="toggleRoomFilter" class="filter-button">
-          <svg xmlns="http://www.w3.org/2000/svg" class="filter-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-          </svg>
-          ตัวกรองห้องประชุม
-        </button>
-        <button @click="toggleFullscreen" class="fullscreen-button">
-          <svg v-if="!isFullscreen" xmlns="http://www.w3.org/2000/svg" class="fullscreen-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 011.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clip-rule="evenodd" />
-          </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" class="fullscreen-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M5 4a1 1 0 00-1 1v4a1 1 0 01-2 0V5a3 3 0 013-3h4a1 1 0 010 2H5zm10 8a1 1 0 01-1 1h-4a1 1 0 010-2h4a1 1 0 001-1V7a1 1 0 112 0v4a3 3 0 01-3 3z" clip-rule="evenodd" />
-          </svg>
-          {{ isFullscreen ? 'ออกจากเต็มจอ' : 'แสดงเต็มจอ' }}
-        </button>
-      </div>
+  <div class="display-root" ref="containerRef">
+    <!-- Animated background -->
+    <div class="bg-layer">
+      <div class="bg-orb bg-orb-1"></div>
+      <div class="bg-orb bg-orb-2"></div>
+      <div class="bg-orb bg-orb-3"></div>
+      <div class="bg-grid"></div>
     </div>
 
-    <!-- ส่วนตัวกรองห้องประชุม -->
-    <div :class="['room-filter-panel', {'open': showRoomFilter}]">
-      <div class="filter-container">
-        <h3 class="filter-title">เลือกห้องประชุมที่ต้องการแสดง</h3>
-        <div class="room-options">
-          <div v-for="room in availableRooms" :key="room.id" class="room-option">
-            <label class="room-checkbox">
-              <input type="checkbox" :value="room.id" v-model="selectedRoomIds" @change="saveRoomPreferences">
-              <span class="room-label">{{ room.name }}</span>
+    <!-- Top bar -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <div class="logo-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M3 10h18" />
+            <path d="M9 4v6" />
+          </svg>
+        </div>
+        <div class="brand">
+          <h1 class="brand-title">ตารางการประชุม</h1>
+          <p class="brand-date">{{ dateDisplay }}</p>
+        </div>
+      </div>
+
+      <div class="clock-display">
+        <div class="clock-time">{{ timeDisplay }}</div>
+        <div class="clock-pulse"></div>
+      </div>
+
+      <div class="top-bar-right">
+        <button @click="toggleRoomFilter" class="icon-btn" title="ตัวกรองห้องประชุม">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+          </svg>
+        </button>
+        <button @click="toggleFullscreen" class="icon-btn" title="แสดงเต็มจอ">
+          <svg v-if="!isFullscreen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 14h6v6m10-10h-6V4m0 6l7-7M3 21l7-7" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Room filter panel -->
+    <transition name="slide-down">
+      <div v-if="showRoomFilter" class="filter-panel">
+        <div class="filter-inner">
+          <h3 class="filter-heading">เลือกห้องประชุมที่ต้องการแสดง</h3>
+          <div class="filter-chips">
+            <label v-for="room in availableRooms" :key="room.id" class="chip"
+              :class="{ active: selectedRoomIds.includes(room.id) }">
+              <input type="checkbox" :value="room.id" v-model="selectedRoomIds" @change="saveRoomPreferences" />
+              <span class="chip-dot"></span>
+              {{ room.name }}
             </label>
+          </div>
+          <div class="filter-actions">
+            <button @click="selectAllRooms" class="action-btn secondary">เลือกทั้งหมด</button>
+            <button @click="clearRoomSelection" class="action-btn danger">ยกเลิกทั้งหมด</button>
+            <button @click="toggleRoomFilter" class="action-btn primary">ปิด</button>
           </div>
         </div>
       </div>
-      <div class="filter-buttons">
-        <button @click="selectAllRooms" class="btn btn-select-all">เลือกทั้งหมด</button>
-        <button @click="clearRoomSelection" class="btn btn-clear">ยกเลิกทั้งหมด</button>
-        <button @click="toggleRoomFilter" class="btn btn-apply">บันทึกและปิด</button>
+    </transition>
+
+    <!-- Loading -->
+    <div v-if="loading" class="state-box">
+      <div class="spinner"></div>
+      <p class="state-text">กำลังโหลดข้อมูล...</p>
+    </div>
+
+    <!-- Error -->
+    <div v-else-if="error" class="state-box error">
+      <svg class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="15" y1="9" x2="9" y2="15" />
+        <line x1="9" y1="9" x2="15" y2="15" />
+      </svg>
+      <p class="state-title">เกิดข้อผิดพลาด</p>
+      <p class="state-text">{{ error }}</p>
+      <button @click="fetchMeetings" class="action-btn primary mt-4">ลองใหม่</button>
+    </div>
+
+    <!-- No rooms selected -->
+    <div v-else-if="selectedRoomIds.length === 0" class="state-box">
+      <svg class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+        <circle cx="12" cy="10" r="3" />
+      </svg>
+      <p class="state-title">ยังไม่ได้เลือกห้องประชุม</p>
+      <button @click="toggleRoomFilter" class="action-btn primary mt-4">เลือกห้องประชุม</button>
+    </div>
+
+    <!-- No meetings -->
+    <div v-else-if="filteredMeetings.length === 0" class="state-box">
+      <svg class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+      <p class="state-title">ไม่มีการประชุมในวันนี้</p>
+      <p class="state-text">ห้องที่เลือกไม่มีกำหนดการประชุม</p>
+    </div>
+
+    <!-- Meeting list -->
+    <div v-else class="meeting-scroll" ref="tableScrollRef" @mouseenter="pauseScroll = true"
+      @mouseleave="pauseScroll = false" @touchstart="pauseScroll = true" @touchend="pauseScroll = false">
+
+      <!-- Summary counters -->
+      <div class="summary-bar">
+        <div class="summary-item ongoing" v-if="countByStatus.ongoing > 0">
+          <span class="summary-dot pulse"></span>
+          <span class="summary-label">กำลังประชุม</span>
+          <span class="summary-count">{{ countByStatus.ongoing }}</span>
+        </div>
+        <div class="summary-item upcoming" v-if="countByStatus.upcoming > 0">
+          <span class="summary-dot"></span>
+          <span class="summary-label">รอดำเนินการ</span>
+          <span class="summary-count">{{ countByStatus.upcoming }}</span>
+        </div>
+        <div class="summary-item completed" v-if="countByStatus.completed > 0">
+          <span class="summary-dot"></span>
+          <span class="summary-label">เสร็จสิ้น</span>
+          <span class="summary-count">{{ countByStatus.completed }}</span>
+        </div>
+      </div>
+
+      <!-- Meeting cards -->
+      <div class="meeting-list">
+        <div v-for="(meeting, index) in filteredMeetings" :key="meeting.id" class="meeting-card"
+          :class="meeting.status">
+          <!-- Status accent bar -->
+          <div class="card-accent"></div>
+
+          <div class="card-body">
+            <!-- Time column -->
+            <div class="card-time">
+              <span class="time-start">{{ formatTime(meeting.startTime) }}</span>
+              <svg class="time-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M12 5v14M19 12l-7 7-7-7" />
+              </svg>
+              <span class="time-end">{{ formatTime(meeting.endTime) }}</span>
+              <!-- Progress bar for ongoing -->
+              <div v-if="meeting.status === 'ongoing'" class="time-progress">
+                <div class="time-progress-bar" :style="{ width: getMeetingProgress(meeting) + '%' }"></div>
+              </div>
+            </div>
+
+            <!-- Info column -->
+            <div class="card-info">
+              <h3 class="card-title">{{ meeting.title }}</h3>
+              <div class="card-meta">
+                <span class="meta-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  {{ getRoomName(meeting.roomId) }}
+                </span>
+                <span class="meta-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  {{ meeting.organizer }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Status badge -->
+            <div class="card-status">
+              <span class="badge" :class="'badge-' + meeting.status">
+                <span v-if="meeting.status === 'ongoing'" class="badge-pulse"></span>
+                {{ getStatusText(meeting.status) }}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- แสดงเวลาปัจจุบัน -->
-    <div class="current-time">
-      <span>{{ dateDisplay }}</span> | <span>{{ timeDisplay }}</span>
-    </div>
-
-    <!-- ส่วนแสดงการโหลด -->
-    <div v-if="loading" class="loading-container">
-      <div class="loader"></div>
-      <p class="loading-text">กำลังโหลดข้อมูล...</p>
-    </div>
-
-    <!-- ส่วนแสดงข้อผิดพลาด -->
-    <div v-else-if="error" class="error-container">
-      <p class="error-title">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
-      <p>{{ error }}</p>
-      <button @click="fetchMeetings" class="btn btn-retry">ลองใหม่อีกครั้ง</button>
-    </div>
-
-    <!-- ข้อความเมื่อไม่มีการเลือกห้อง -->
-    <div v-else-if="selectedRoomIds.length === 0" class="empty-selection">
-      <p class="empty-title">ไม่ได้เลือกห้องประชุม</p>
-      <p>กรุณาเลือกห้องประชุมที่ต้องการแสดงข้อมูล</p>
-      <button @click="toggleRoomFilter" class="btn btn-select-room">เลือกห้องประชุม</button>
-    </div>
-
-    <!-- ข้อความเมื่อไม่พบการประชุมในห้องที่เลือก -->
-    <div v-else-if="filteredMeetings.length === 0 && selectedRoomIds.length > 0" class="no-meetings">
-      <p class="no-meetings-title">ไม่พบการประชุมในห้องที่เลือก</p>
-      <p>กรุณาเลือกห้องประชุมอื่น หรือลองตรวจสอบในภายหลัง</p>
-    </div>
-
-    <!-- ตารางการประชุม -->
-    <table v-else class="meeting-table">
-      <thead>
-      <tr>
-        <th width="10%">เวลา</th>
-        <th width="25%">หัวข้อการประชุม</th>
-        <th width="20%">ห้องประชุม</th>
-        <th width="20%">ผู้รับผิดชอบ</th>
-        <th width="20%">สถานะ</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr v-for="(meeting, index) in filteredMeetings"
-          :key="meeting.id"
-          :class="meetingRowClass(meeting, index)">
-        <td>
-          {{ formatTime(meeting.startTime) }}
-          <svg xmlns="http://www.w3.org/2000/svg" class="time-separator-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
-          </svg>
-          {{ formatTime(meeting.endTime) }}
-        </td>
-        <td>{{ meeting.title }}</td>
-        <td>{{ getRoomName(meeting.roomId) }}</td>
-        <td>{{ meeting.organizer }}</td>
-        <td><span :class="['status', statusClass(meeting.status)]">{{ getStatusText(meeting.status) }}</span></td>
-      </tr>
-      <tr v-if="filteredMeetings.length === 0">
-        <td colspan="5" class="empty-message">ไม่มีการประชุมในวันนี้</td>
-      </tr>
-      </tbody>
-    </table>
-
-    <div class="footer">
-      <p>อัพเดทล่าสุด: <span>{{ lastUpdated }}</span></p>
-      <button @click="fetchMeetings" class="btn btn-refresh">รีเฟรช</button>
-    </div>
+    <!-- Footer -->
+    <footer class="bottom-bar">
+      <span>อัพเดทล่าสุด: {{ lastUpdated }}</span>
+      <span class="footer-sep">|</span>
+      <span>CC: Little Boy</span>
+    </footer>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 
-// สร้าง ref สำหรับ container เพื่อใช้ในการทำ fullscreen
 const containerRef = ref(null);
 const isFullscreen = ref(false);
+
+// ===== Auto-scroll =====
+const tableScrollRef = ref(null);
+const pauseScroll = ref(false);
+let scrollInterval = null;
+const SCROLL_SPEED = 1;
+const SCROLL_DELAY_MS = 3000;
+
+const startAutoScroll = () => {
+  if (scrollInterval) return;
+  scrollInterval = setInterval(() => {
+    const el = tableScrollRef.value;
+    if (!el || pauseScroll.value) return;
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    if (maxScroll <= 0) return;
+    if (el.scrollTop >= maxScroll) {
+      pauseScroll.value = true;
+      setTimeout(() => {
+        if (el) el.scrollTop = 0;
+        pauseScroll.value = false;
+      }, SCROLL_DELAY_MS);
+    } else {
+      el.scrollTop += SCROLL_SPEED;
+    }
+  }, 20);
+};
+
+const stopAutoScroll = () => {
+  if (scrollInterval) {
+    clearInterval(scrollInterval);
+    scrollInterval = null;
+  }
+};
 
 // ข้อมูลเวลา
 const dateDisplay = ref('');
@@ -129,39 +242,25 @@ const lastUpdated = ref('');
 const meetings = ref([]);
 const loading = ref(true);
 const error = ref(null);
-//const apiUrl = ref('http://localhost:3000/api/meetings'); // เปลี่ยนเป็น URL API ของเรา
-const apiUrl = ref('http://localhost:3000/api'); // เปลี่ยนเป็น URL API หลัก
+const apiUrl = ref('https://tpms.dlt.go.th/api-meet-reserve/api');
 
 const fetchRooms = async () => {
   try {
     const response = await fetch(`${apiUrl.value}/rooms`);
-
-    console.log(response)
-
     if (!response.ok) throw new Error('การเชื่อมต่อ API ล้มเหลว');
-
     const data = await response.json();
     availableRooms.value = data;
-
-    console.log(availableRooms)
-
-    // หลังจากโหลดห้องเสร็จ จึงโหลดการเลือกห้องจาก localStorage
     loadRoomPreferences();
-
-    // ถ้าไม่มีห้องที่เลือกไว้ ให้เลือกทุกห้องเป็นค่าเริ่มต้น
     if (selectedRoomIds.value.length === 0) {
       selectAllRooms();
     }
   } catch (err) {
-    // กรณีเกิดข้อผิดพลาด ใช้ค่าเริ่มต้น
     availableRooms.value = [
       { id: 'A', name: 'ห้องประชุม A' },
-      // ...
     ];
-    // ...
   }
 };
-// ข้อมูลตัวกรองห้องประชุม
+
 const showRoomFilter = ref(false);
 const availableRooms = ref([
   { id: 'A', name: 'ห้องประชุม A' },
@@ -172,275 +271,146 @@ const availableRooms = ref([
 ]);
 const selectedRoomIds = ref([]);
 
-// กรองการประชุมตามห้องที่เลือก
-// กรองและจัดเรียงการประชุมตามห้องที่เลือกและสถานะ
 const filteredMeetings = computed(() => {
-  if (selectedRoomIds.value.length === 0) {
-    return [];
-  }
-
-  // กรองห้องที่เลือก
-  const filtered = meetings.value.filter(meeting =>
-      selectedRoomIds.value.includes(meeting.roomId)
-  );
-
-  // แยกการประชุมตามสถานะ
-  const ongoing = filtered.filter(meeting => meeting.status === 'ongoing');
-  const upcoming = filtered.filter(meeting => meeting.status === 'upcoming');
-  const completed = filtered.filter(meeting => meeting.status === 'completed');
-
-  // เรียงลำดับตามเวลาเริ่มต้น
+  if (selectedRoomIds.value.length === 0) return [];
+  const filtered = meetings.value.filter((m) => selectedRoomIds.value.includes(m.roomId));
+  const ongoing = filtered.filter((m) => m.status === 'ongoing');
+  const upcoming = filtered.filter((m) => m.status === 'upcoming');
+  const completed = filtered.filter((m) => m.status === 'completed');
   ongoing.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
   upcoming.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
   completed.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-
-  // รวมกลับเป็นรายการเดียว: กำลังประชุม -> รอดำเนินการ -> เสร็จสิ้น
   return [...ongoing, ...upcoming, ...completed];
 });
 
-// เปิด/ปิดแผงตัวกรองห้อง
-const toggleRoomFilter = () => {
-  showRoomFilter.value = !showRoomFilter.value;
+const countByStatus = computed(() => {
+  const list = filteredMeetings.value;
+  return {
+    ongoing: list.filter((m) => m.status === 'ongoing').length,
+    upcoming: list.filter((m) => m.status === 'upcoming').length,
+    completed: list.filter((m) => m.status === 'completed').length,
+  };
+});
+
+const getMeetingProgress = (meeting) => {
+  const now = new Date();
+  const start = new Date(meeting.startTime);
+  const end = new Date(meeting.endTime);
+  const total = end - start;
+  const elapsed = now - start;
+  return Math.min(100, Math.max(0, (elapsed / total) * 100));
 };
 
-// เปิด/ปิดการแสดงผลแบบเต็มจอ
+const toggleRoomFilter = () => { showRoomFilter.value = !showRoomFilter.value; };
+
 const toggleFullscreen = () => {
   if (!isFullscreen.value) {
-    // เปิดเต็มจอ
-    const element = containerRef.value;
-    if (element.requestFullscreen) {
-      element.requestFullscreen();
-    } else if (element.mozRequestFullScreen) { // Firefox
-      element.mozRequestFullScreen();
-    } else if (element.webkitRequestFullscreen) { // Chrome, Safari, Opera
-      element.webkitRequestFullscreen();
-    } else if (element.msRequestFullscreen) { // IE/Edge
-      element.msRequestFullscreen();
-    }
+    const el = containerRef.value;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if (el.msRequestFullscreen) el.msRequestFullscreen();
   } else {
-    // ปิดเต็มจอ
-    if (document.exitFullscreen) {
-      document.exitFullscreen();
-    } else if (document.mozCancelFullScreen) { // Firefox
-      document.mozCancelFullScreen();
-    } else if (document.webkitExitFullscreen) { // Chrome, Safari, Opera
-      document.webkitExitFullscreen();
-    } else if (document.msExitFullscreen) { // IE/Edge
-      document.msExitFullscreen();
-    }
+    if (document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    else if (document.msExitFullscreen) document.msExitFullscreen();
   }
 };
 
-// ตรวจจับการเปลี่ยนแปลงสถานะเต็มจอ
 const handleFullscreenChange = () => {
-  isFullscreen.value = !!(
-      document.fullscreenElement ||
-      document.mozFullScreenElement ||
-      document.webkitFullscreenElement ||
-      document.msFullscreenElement
-  );
+  isFullscreen.value = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
 };
 
-// เลือกห้องทั้งหมด
 const selectAllRooms = () => {
-  selectedRoomIds.value = availableRooms.value.map(room => room.id);
+  selectedRoomIds.value = availableRooms.value.map((r) => r.id);
   saveRoomPreferences();
 };
 
-// ยกเลิกการเลือกห้องทั้งหมด
 const clearRoomSelection = () => {
   selectedRoomIds.value = [];
   saveRoomPreferences();
 };
 
-// บันทึกการเลือกห้องไว้ใน localStorage
 const saveRoomPreferences = () => {
   localStorage.setItem('selectedRoomIds', JSON.stringify(selectedRoomIds.value));
 };
 
-// โหลดการเลือกห้องจาก localStorage
 const loadRoomPreferences = () => {
-  const savedRooms = localStorage.getItem('selectedRoomIds');
-  if (savedRooms) {
+  const saved = localStorage.getItem('selectedRoomIds');
+  if (saved) {
     try {
-      const savedRoomIds = JSON.parse(savedRooms);
-      // ตรวจสอบว่า room ที่บันทึกไว้ยังมีอยู่ในระบบหรือไม่
-      selectedRoomIds.value = savedRoomIds.filter(id =>
-          availableRooms.value.some(room => room.id === id)
-      );
-    } catch (e) {
-      console.error('Error parsing saved room preferences', e);
-      selectedRoomIds.value = [];
-    }
+      const ids = JSON.parse(saved);
+      selectedRoomIds.value = ids.filter((id) => availableRooms.value.some((r) => r.id === id));
+    } catch { selectedRoomIds.value = []; }
   } else {
     selectedRoomIds.value = [];
   }
 };
 
-// หาชื่อห้องจาก roomId
 const getRoomName = (roomId) => {
-  const room = availableRooms.value.find(r => r.id === roomId);
+  const room = availableRooms.value.find((r) => r.id === roomId);
   return room ? room.name : roomId;
 };
 
-// ดึงข้อมูลการประชุมจาก API
 const fetchMeetings = async () => {
   loading.value = true;
   error.value = null;
-
   try {
-    // ในการใช้งานจริง รับพารามิเตอร์ห้องที่เลือกเพื่อส่งไป API
     const roomParams = selectedRoomIds.value.join(',');
-   // const response = await fetch(`${apiUrl.value}?rooms=${roomParams}`);
     const response = await fetch(`${apiUrl.value}/meetings?rooms=${roomParams}`);
     if (!response.ok) throw new Error('การเชื่อมต่อ API ล้มเหลว');
-
     const data = await response.json();
     meetings.value = data;
-
-    // เรียงลำดับตามเวลาเริ่มต้น (ถ้า API ไม่เรียงให้)
     meetings.value.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-
     lastUpdated.value = timeDisplay.value;
   } catch (err) {
     console.error('Error fetching meetings:', err);
     error.value = 'ไม่สามารถโหลดข้อมูลการประชุมได้ กรุณาลองใหม่อีกครั้ง';
-
-    // สำหรับการทดสอบ ถ้ามีข้อผิดพลาดให้ใช้ข้อมูลจำลอง
     if (process.env.NODE_ENV === 'development') {
       const now = new Date();
       const todayDate = now.toISOString().split('T')[0];
-
       meetings.value = [
-        {
-          id: 1,
-          title: 'ประชุมทีมการตลาด',
-          roomId: 'A',
-          startTime: `${todayDate}T09:00:00`,
-          endTime: `${todayDate}T10:00:00`,
-          organizer: 'คุณวิชัย สุขสมบัติ',
-          status: getMeetingStatus(`${todayDate}T09:00:00`, `${todayDate}T10:00:00`)
-        },
-        {
-          id: 2,
-          title: 'การวางแผนโครงการใหม่',
-          roomId: 'B',
-          startTime: `${todayDate}T10:30:00`,
-          endTime: `${todayDate}T11:30:00`,
-          organizer: 'คุณสมหญิง ใจดี',
-          status: getMeetingStatus(`${todayDate}T10:30:00`, `${todayDate}T11:30:00`)
-        },
-        {
-          id: 3,
-          title: 'ประชุมฝ่ายขาย',
-          roomId: 'C',
-          startTime: `${todayDate}T13:00:00`,
-          endTime: `${todayDate}T14:30:00`,
-          organizer: 'คุณสมชาย มั่นคง',
-          status: getMeetingStatus(`${todayDate}T13:00:00`, `${todayDate}T14:30:00`)
-        },
-        {
-          id: 4,
-          title: 'ประชุมติดตามความคืบหน้า',
-          roomId: 'A',
-          startTime: `${todayDate}T15:00:00`,
-          endTime: `${todayDate}T16:00:00`,
-          organizer: 'คุณนภา สมบูรณ์',
-          status: getMeetingStatus(`${todayDate}T15:00:00`, `${todayDate}T16:00:00`)
-        },
-        {
-          id: 5,
-          title: 'ประชุมสรุปงานประจำวัน',
-          roomId: 'D',
-          startTime: `${todayDate}T16:30:00`,
-          endTime: `${todayDate}T17:30:00`,
-          organizer: 'คุณประเสริฐ รักงาน',
-          status: getMeetingStatus(`${todayDate}T16:30:00`, `${todayDate}T17:30:00`)
-        },
-        {
-          id: 6,
-          title: 'ประชุมวางแผนงบประมาณ',
-          roomId: 'E',
-          startTime: `${todayDate}T14:00:00`,
-          endTime: `${todayDate}T16:00:00`,
-          organizer: 'คุณสุชาติ การเงิน',
-          status: getMeetingStatus(`${todayDate}T14:00:00`, `${todayDate}T16:00:00`)
-        }
+        { id: 1, title: 'ประชุมทีมการตลาด', roomId: 'A', startTime: `${todayDate}T09:00:00`, endTime: `${todayDate}T10:00:00`, organizer: 'คุณวิชัย สุขสมบัติ', status: getMeetingStatus(`${todayDate}T09:00:00`, `${todayDate}T10:00:00`) },
+        { id: 2, title: 'การวางแผนโครงการใหม่', roomId: 'B', startTime: `${todayDate}T10:30:00`, endTime: `${todayDate}T11:30:00`, organizer: 'คุณสมหญิง ใจดี', status: getMeetingStatus(`${todayDate}T10:30:00`, `${todayDate}T11:30:00`) },
+        { id: 3, title: 'ประชุมฝ่ายขาย', roomId: 'C', startTime: `${todayDate}T13:00:00`, endTime: `${todayDate}T14:30:00`, organizer: 'คุณสมชาย มั่นคง', status: getMeetingStatus(`${todayDate}T13:00:00`, `${todayDate}T14:30:00`) },
+        { id: 4, title: 'ประชุมติดตามความคืบหน้า', roomId: 'A', startTime: `${todayDate}T15:00:00`, endTime: `${todayDate}T16:00:00`, organizer: 'คุณนภา สมบูรณ์', status: getMeetingStatus(`${todayDate}T15:00:00`, `${todayDate}T16:00:00`) },
+        { id: 5, title: 'ประชุมสรุปงานประจำวัน', roomId: 'D', startTime: `${todayDate}T16:30:00`, endTime: `${todayDate}T17:30:00`, organizer: 'คุณประเสริฐ รักงาน', status: getMeetingStatus(`${todayDate}T16:30:00`, `${todayDate}T17:30:00`) },
+        { id: 6, title: 'ประชุมวางแผนงบประมาณ', roomId: 'E', startTime: `${todayDate}T14:00:00`, endTime: `${todayDate}T16:00:00`, organizer: 'คุณสุชาติ การเงิน', status: getMeetingStatus(`${todayDate}T14:00:00`, `${todayDate}T16:00:00`) },
       ];
-
-      error.value = null; // ยกเลิกข้อความผิดพลาด
-      console.warn('ใช้ข้อมูลทดสอบแทน API');
+      error.value = null;
     }
   } finally {
     loading.value = false;
   }
 };
 
-// ตรวจสอบสถานะของการประชุมจากเวลาเริ่มต้นและเวลาสิ้นสุด
 const getMeetingStatus = (startTime, endTime) => {
   const now = new Date();
   const start = new Date(startTime);
   const end = new Date(endTime);
-
-  if (now < start) {
-    return 'upcoming';
-  } else if (now >= start && now <= end) {
-    return 'ongoing';
-  } else {
-    return 'completed';
-  }
+  if (now < start) return 'upcoming';
+  if (now >= start && now <= end) return 'ongoing';
+  return 'completed';
 };
 
-// อัพเดทเวลาปัจจุบัน
 const updateClock = () => {
   const now = new Date();
-
-  // วันที่ไทย
-  dateDisplay.value = now.toLocaleDateString('th-TH', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long'
-  });
-
-  // เวลา
-  timeDisplay.value = now.toLocaleTimeString('th-TH', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
-
-  // อัพเดทสถานะการประชุมทุกนาที
-  const seconds = now.getSeconds();
-  if (seconds === 0) {
-    updateMeetingStatuses();
-  }
+  dateDisplay.value = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+  timeDisplay.value = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  if (now.getSeconds() === 0) updateMeetingStatuses();
 };
 
-// Interval สำหรับอัพเดทเวลา
 let timeInterval;
 
-// อัพเดทสถานะการประชุมตามเวลาปัจจุบัน
 const updateMeetingStatuses = () => {
-  if (meetings.value.length > 0) {
-    meetings.value.forEach(meeting => {
-      meeting.status = getMeetingStatus(meeting.startTime, meeting.endTime);
-    });
-  }
+  meetings.value.forEach((m) => { m.status = getMeetingStatus(m.startTime, m.endTime); });
 };
 
-// แปลงเวลาให้อยู่ในรูปแบบ HH:MM
 const formatTime = (isoTime) => {
-  const date = new Date(isoTime);
-  return date.toLocaleTimeString('th-TH', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  return new Date(isoTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 };
 
-// แสดงข้อความสถานะ
 const getStatusText = (status) => {
-  switch(status) {
+  switch (status) {
     case 'ongoing': return 'กำลังประชุม';
     case 'upcoming': return 'รอดำเนินการ';
     case 'completed': return 'เสร็จสิ้น';
@@ -448,531 +418,825 @@ const getStatusText = (status) => {
   }
 };
 
-// กำหนด class สำหรับสถานะ
-const statusClass = (status) => {
-  switch(status) {
-    case 'ongoing': return 'status-ongoing';
-    case 'upcoming': return 'status-upcoming';
-    case 'completed': return 'status-completed';
-    default: return '';
-  }
-};
-
-// กำหนด class สำหรับแถวของการประชุม
-const meetingRowClass = (meeting, index) => {
-  if (meeting.status === 'ongoing') {
-    return 'current';
-  } else if (meeting.status === 'upcoming') {
-    return 'upcoming';
-  }
-  return '';
-};
-
-// Interval สำหรับรีเฟรชข้อมูลอัตโนมัติ
 let refreshInterval;
 
-// เมื่อคอมโพเนนต์ถูกโหลด
 onMounted(() => {
-  // เพิ่ม event listener สำหรับตรวจจับการเปลี่ยนแปลงเต็มจอ
   document.addEventListener('fullscreenchange', handleFullscreenChange);
-  document.addEventListener('mozfullscreenchange', handleFullscreenChange);
   document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
   document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-
-  // โหลดการเลือกห้องจาก localStorage
   loadRoomPreferences();
-  // ดึงข้อมูลห้องประชุม
   fetchRooms();
-  // เริ่มอัพเดทเวลาทุกวินาที
   updateClock();
   timeInterval = setInterval(updateClock, 1000);
-
-  // ดึงข้อมูลการประชุม
   fetchMeetings();
-
-  // ตั้งค่าให้รีเฟรชข้อมูลทุก 5 นาที
   refreshInterval = setInterval(fetchMeetings, 5 * 60 * 1000);
+  setTimeout(() => { startAutoScroll(); }, 500);
 });
 
-// เมื่อคอมโพเนนต์ถูกทำลาย
 onUnmounted(() => {
-  // ลบ event listener เมื่อคอมโพเนนต์ถูกทำลาย
   document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
   document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
   document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
-
   clearInterval(timeInterval);
   clearInterval(refreshInterval);
+  stopAutoScroll();
 });
 
-// เมื่อ selectedRoomIds เปลี่ยน ให้ดึงข้อมูลใหม่
-watch(selectedRoomIds, () => {
-  // ดึงข้อมูลใหม่เมื่อมีการเปลี่ยนห้องที่เลือก
-  fetchMeetings();
-});
+watch(selectedRoomIds, () => { fetchMeetings(); });
 </script>
-<style scoped>
-/* ===== สไตล์ทั่วไป ===== */
-body {
-  font-family: 'Prompt', 'Kanit', sans-serif;
+
+<style>
+/* ===== Design Tokens — Light Theme ===== */
+:root {
+  --bg-deep: #f0f2f8;
+  --bg-surface: rgba(255, 255, 255, 0.88);
+  --bg-card: rgba(255, 255, 255, 0.75);
+  --bg-glass: rgba(99, 102, 241, 0.04);
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-glow: rgba(99, 102, 241, 0.35);
+  --accent: #6366f1;
+  --accent-bright: #4f46e5;
+  --accent-dim: #4338ca;
+  --green: #059669;
+  --green-dim: rgba(5, 150, 105, 0.10);
+  --yellow: #d97706;
+  --yellow-dim: rgba(217, 119, 6, 0.10);
+  --muted: rgba(0, 0, 0, 0.30);
+  --text: #1e293b;
+  --text-secondary: #64748b;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+
+html, body, #app {
   margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-deep);
+}
+
+/* ===== Root container ===== */
+.display-root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-deep);
+  color: var(--text);
+  font-family: 'Sarabun', 'Prompt', sans-serif;
+}
+
+/* ===== Animated background ===== */
+.bg-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.25;
+  animation: float 20s ease-in-out infinite;
+}
+
+.bg-orb-1 {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, #a5b4fc 0%, transparent 70%);
+  top: -15%;
+  left: -10%;
+  animation-delay: 0s;
+}
+
+.bg-orb-2 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, #c4b5fd 0%, transparent 70%);
+  bottom: -20%;
+  right: -8%;
+  animation-delay: -7s;
+}
+
+.bg-orb-3 {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, #67e8f9 0%, transparent 70%);
+  top: 40%;
+  left: 50%;
+  animation-delay: -14s;
+  opacity: 0.18;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.05); }
+  66% { transform: translate(-20px, 15px) scale(0.95); }
+}
+
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* ===== Top bar ===== */
+.top-bar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  background: var(--bg-surface);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+}
+
+.logo-mark svg {
+  width: 30px;
+  height: 30px;
+  color: white;
+}
+
+.brand-title {
+  font-size: 2.2em;
+  font-weight: 700;
+  margin: 0;
+  background: linear-gradient(135deg, #1e293b 30%, var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.2;
+}
+
+.brand-date {
+  font-size: 1.1em;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Clock */
+.clock-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.clock-time {
+  font-size: 3.5em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  background: linear-gradient(135deg, var(--accent-dim), #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.clock-pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #059669;
+  box-shadow: 0 0 8px rgba(5, 150, 105, 0.4);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+/* Top bar buttons */
+.top-bar-right {
+  display: flex;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-glass);
+  color: var(--accent-bright);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
   padding: 0;
 }
 
-.container {
-  width: 100%;
-  max-width: 1920px;
-  margin: 0 auto;
-  padding: 20px;
-  box-sizing: border-box;
+.icon-btn svg {
+  width: 22px;
+  height: 22px;
 }
 
-/* ปรับสไตล์เมื่อเปิดเต็มจอ */
-:fullscreen .container {
-  padding: 30px;
-  background-color: #f0f4f8;
-  max-width: none;
+.icon-btn:hover {
+  background: rgba(99, 102, 241, 0.10);
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+  transform: translateY(-1px);
 }
 
-:-webkit-full-screen .container {
-  padding: 30px;
-  background-color: #f0f4f8;
-  max-width: none;
+/* ===== Filter panel ===== */
+.filter-panel {
+  position: relative;
+  z-index: 10;
+  background: var(--bg-surface);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
-:-ms-fullscreen .container {
-  padding: 30px;
-  background-color: #f0f4f8;
-  max-width: none;
+.filter-inner {
+  padding: 20px 32px;
 }
 
-/* ===== ส่วนหัว ===== */
-.header {
-  background-color: #1a5276;
-  color: white;
-  padding: 20px;
-  text-align: center;
-  border-radius: 10px 10px 0 0;
-  margin-bottom: 0;
+.filter-heading {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--accent-bright);
+  margin-bottom: 14px;
+}
+
+.filter-chips {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.chip {
+  display: flex;
   align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-glass);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-size: 1em;
+  font-family: inherit;
 }
 
-.header h1 {
-  margin: 0;
-  font-size: 2em;
+.chip input { display: none; }
+
+.chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: all 0.25s;
 }
 
-.header-buttons {
+.chip.active {
+  background: rgba(99, 102, 241, 0.10);
+  border-color: var(--accent);
+  color: var(--accent-dim);
+}
+
+.chip.active .chip-dot {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.chip:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.filter-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 10px;
 }
 
-.filter-button, .fullscreen-button {
-  background-color: white;
-  color: #1a5276;
+.action-btn {
+  padding: 10px 22px;
+  border-radius: 10px;
   border: none;
-  border-radius: 5px;
-  padding: 8px 15px;
-  font-size: 1rem;
+  font-size: 0.95em;
+  font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  transition: background-color 0.2s;
+  transition: all 0.25s;
 }
 
-.filter-button:hover, .fullscreen-button:hover {
-  background-color: #e6e6e6;
+.action-btn.primary {
+  background: linear-gradient(135deg, var(--accent), #7c3aed);
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.20);
 }
 
-.filter-icon, .fullscreen-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 8px;
+.action-btn.primary:hover {
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.30);
+  transform: translateY(-1px);
 }
 
-/* ===== แผงตัวกรองห้องประชุม ===== */
-.room-filter-panel {
-  background-color: white;
-  border-left: 1px solid #ddd;
-  border-right: 1px solid #ddd;
-  border-bottom: 1px solid #ddd;
-  padding: 0;
+.action-btn.secondary {
+  background: var(--bg-glass);
+  color: var(--accent);
+  border: 1px solid var(--border-subtle);
+}
+
+.action-btn.secondary:hover {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--accent);
+}
+
+.action-btn.danger {
+  background: transparent;
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.action-btn.danger:hover {
+  background: rgba(248, 113, 113, 0.1);
+}
+
+/* Transition */
+.slide-down-enter-active, .slide-down-leave-active {
   transition: all 0.3s ease;
-  max-height: 0;
-  overflow: hidden;
+}
+.slide-down-enter-from, .slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 
-.room-filter-panel.open {
-  padding: 20px;
-  max-height: 500px;
-}
-
-.filter-container {
-  margin-bottom: 15px;
-}
-
-.filter-title {
-  font-size: 1.2rem;
-  margin-bottom: 10px;
-  font-weight: 600;
-}
-
-.room-options {
+/* ===== State boxes (loading / error / empty) ===== */
+.state-box {
+  position: relative;
+  z-index: 5;
+  flex: 1;
   display: flex;
-  flex-wrap: wrap;
-  margin: -5px;
-}
-
-.room-option {
-  margin: 5px;
-}
-
-.room-checkbox {
-  display: flex;
+  flex-direction: column;
   align-items: center;
-  background-color: #f8f9fa;
-  padding: 8px 15px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.room-checkbox:hover {
-  background-color: #e9ecef;
-}
-
-.room-checkbox input {
-  margin-right: 8px;
-}
-
-.filter-buttons {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.btn {
-  padding: 8px 15px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  margin-left: 10px;
-  transition: background-color 0.2s;
-}
-
-.btn-select-all {
-  background-color: #2874a6;
-  color: white;
-}
-
-.btn-select-all:hover {
-  background-color: #1a5276;
-}
-
-.btn-clear {
-  background-color: #6c757d;
-  color: white;
-}
-
-.btn-clear:hover {
-  background-color: #5a6268;
-}
-
-.btn-apply {
-  background-color: #28a745;
-  color: white;
-}
-
-.btn-apply:hover {
-  background-color: #218838;
-}
-
-.btn-retry, .btn-select-room {
-  background-color: #2874a6;
-  color: white;
-  font-size: 1rem;
-  padding: 10px 20px;
-}
-
-.btn-refresh {
-  background-color: #2874a6;
-  color: white;
-  margin-top: 10px;
-}
-
-/* ===== ส่วนแสดงเวลา ===== */
-.current-time {
-  background-color: #f8f9fa;
-  padding: 15px;
-  text-align: right;
-  font-size: 1.5rem;
-  font-weight: 600;
-  border-left: 1px solid #ddd;
-  border-right: 1px solid #ddd;
-  color: #1a5276;
-}
-
-/* ===== ส่วนแสดงการโหลด ===== */
-.loading-container {
-  display: flex;
   justify-content: center;
-  align-items: center;
-  padding: 50px;
-  background-color: white;
-  border: 1px solid #ddd;
-  border-top: none;
-  border-radius: 0 0 10px 10px;
+  gap: 16px;
+  padding: 40px;
 }
 
-.loader {
-  display: inline-block;
-  width: 50px;
-  height: 50px;
-  border: 5px solid #f3f3f3;
-  border-top: 5px solid #3498db;
+.state-icon {
+  width: 64px;
+  height: 64px;
+  color: var(--accent);
+  opacity: 0.6;
+}
+
+.state-box.error .state-icon { color: #f87171; }
+
+.state-title {
+  font-size: 1.6em;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.state-text {
+  font-size: 1.1em;
+  color: var(--text-secondary);
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--border-subtle);
+  border-top-color: var(--accent);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  to { transform: rotate(360deg); }
 }
 
-.loading-text {
-  margin-left: 20px;
-  font-size: 1.2rem;
-  color: #666;
+.mt-4 { margin-top: 16px; }
+
+/* ===== Meeting scroll area ===== */
+.meeting-scroll {
+  position: relative;
+  z-index: 5;
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 32px 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-/* ===== ส่วนแสดงข้อผิดพลาด ===== */
-.error-container {
-  padding: 30px;
-  text-align: center;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  border-top: none;
-  border-radius: 0 0 10px 10px;
+.meeting-scroll::-webkit-scrollbar { display: none; }
+
+/* ===== Summary bar ===== */
+.summary-bar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
-.error-title {
-  color: #dc3545;
-  font-size: 1.4rem;
-  margin-bottom: 15px;
-  font-weight: 600;
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-/* ===== ข้อความเมื่อไม่มีการเลือกห้อง ===== */
-.empty-selection {
-  text-align: center;
-  padding: 50px;
-  background-color: #e2f3ff;
-  border: 1px solid #b8daff;
-  border-top: none;
-  border-radius: 0 0 10px 10px;
+.summary-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
-.empty-title {
-  font-size: 1.4rem;
-  margin-bottom: 15px;
-  font-weight: 600;
-  color: #6c757d;
+.summary-item.ongoing .summary-dot {
+  background: #059669;
+  box-shadow: 0 0 8px rgba(5, 150, 105, 0.4);
 }
 
-/* ===== ข้อความเมื่อไม่พบการประชุม ===== */
-.no-meetings {
-  text-align: center;
-  padding: 50px;
-  background-color: #fff3cd;
-  border: 1px solid #ffeeba;
-  border-top: none;
-  border-radius: 0 0 10px 10px;
+.summary-dot.pulse {
+  animation: pulse 2s ease-in-out infinite;
 }
 
-.no-meetings-title {
-  font-size: 1.4rem;
-  margin-bottom: 15px;
-  font-weight: 600;
-  color: #6c757d;
+.summary-item.upcoming .summary-dot {
+  background: #d97706;
+  box-shadow: 0 0 6px rgba(217, 119, 6, 0.3);
 }
 
-/* ===== ตารางการประชุม ===== */
-.meeting-table {
-  width: 100%;
-  border-collapse: collapse;
-  background-color: white;
-  border: 1px solid #ddd;
-  border-top: none;
-  border-radius: 0 0 10px 10px;
+.summary-item.completed .summary-dot {
+  background: var(--muted);
+}
+
+.summary-label {
+  font-size: 1.15em;
+  color: var(--text-secondary);
+}
+
+.summary-count {
+  font-size: 1.5em;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ===== Meeting cards ===== */
+.meeting-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.meeting-card {
+  display: flex;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   overflow: hidden;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
 }
 
-.meeting-table th {
-  background-color: #2874a6;
-  color: white;
-  padding: 15px;
-  text-align: left;
-  font-weight: 600;
-  font-size: 1.2em;
+.meeting-card:hover {
+  border-color: var(--border-glow);
+  transform: translateX(4px);
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.10);
 }
 
-.meeting-table td {
-  padding: 15px;
-  border-top: 1px solid #e9ecef;
-  text-align: left;
+/* Status-specific card styles */
+.meeting-card.ongoing {
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.06) 0%, var(--bg-card) 100%);
+  border-color: rgba(5, 150, 105, 0.25);
+  box-shadow: 0 2px 16px rgba(5, 150, 105, 0.08);
 }
 
-.meeting-table tr:nth-child(even) {
-  background-color: #f2f2f2;
+.meeting-card.upcoming {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, var(--bg-card) 100%);
+  border-color: rgba(99, 102, 241, 0.18);
 }
 
-.meeting-table tr:nth-child(odd) {
-  background-color: #ffffff;
+.meeting-card.completed {
+  opacity: 0.5;
 }
 
-.meeting-table tbody tr:hover {
-  background-color: #e6f7ff;
+.meeting-card.completed:hover {
+  opacity: 0.7;
 }
 
-/* แถวที่กำลังประชุมหรือรอการประชุม */
-.meeting-table tr.current {
-  background-color: #d4edda;
-  font-weight: bold;
-  animation: highlight 2s infinite;
+/* Accent bar */
+.card-accent {
+  width: 5px;
+  flex-shrink: 0;
 }
 
-.meeting-table tr.upcoming {
-  background-color: #fff3cd;
+.meeting-card.ongoing .card-accent {
+  background: linear-gradient(180deg, var(--green), #10b981);
+  box-shadow: 2px 0 10px rgba(5, 150, 105, 0.2);
 }
 
-.time-separator-icon {
-  width: 20px;
+.meeting-card.upcoming .card-accent {
+  background: linear-gradient(180deg, var(--accent), var(--accent-dim));
+}
+
+.meeting-card.completed .card-accent {
+  background: var(--muted);
+}
+
+/* Card body */
+.card-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 22px 28px;
+  gap: 32px;
+}
+
+/* Time column */
+.card-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.time-start, .time-end {
+  font-size: 1.8em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.time-arrow {
+  width: 16px;
   height: 16px;
-  margin: 0 5px;
-  vertical-align: middle;
-  color: #2874a6;
+  color: var(--muted);
+  margin: 2px 0;
 }
 
-/* สถานะการประชุม */
-.status {
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  display: inline-block;
+.time-progress {
+  width: 100%;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 99px;
+  margin-top: 6px;
+  overflow: hidden;
 }
 
-.status-ongoing {
-  background-color: #28a745;
-  color: white;
+.time-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), #34d399);
+  border-radius: 99px;
+  transition: width 1s ease;
+  box-shadow: 0 1px 6px rgba(5, 150, 105, 0.25);
 }
 
-.status-upcoming {
-  background-color: #ffc107;
-  color: black;
+/* Info column */
+.card-info {
+  flex: 1;
+  min-width: 0;
 }
 
-.status-completed {
-  background-color: #6c757d;
-  color: white;
+.card-title {
+  font-size: 1.9em;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.empty-message {
+.meeting-card.ongoing .card-title {
+  color: #047857;
+}
+
+.card-meta {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.3em;
+  color: var(--text-secondary);
+}
+
+.meta-item svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+/* Status badge */
+.card-status {
+  flex-shrink: 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-size: 1.15em;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.badge-ongoing {
+  background: rgba(5, 150, 105, 0.10);
+  color: #047857;
+  border: 1px solid rgba(5, 150, 105, 0.25);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.10);
+}
+
+.badge-upcoming {
+  background: rgba(217, 119, 6, 0.08);
+  color: #b45309;
+  border: 1px solid rgba(217, 119, 6, 0.25);
+}
+
+.badge-completed {
+  background: rgba(0, 0, 0, 0.04);
+  color: #94a3b8;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.badge-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #059669;
+  box-shadow: 0 0 6px rgba(5, 150, 105, 0.4);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* ===== Footer ===== */
+.bottom-bar {
+  position: relative;
+  z-index: 10;
   text-align: center;
-  padding: 30px;
-  color: #6c757d;
-  font-size: 1.2rem;
+  padding: 10px 32px;
+  font-size: 0.9em;
+  color: var(--muted);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  flex-shrink: 0;
 }
 
-/* ===== ส่วนท้าย ===== */
-.footer {
-  margin-top: 20px;
-  text-align: center;
-  font-size: 0.9rem;
-  color: #6c757d;
-  padding: 10px;
+.footer-sep {
+  margin: 0 8px;
+  opacity: 0.3;
 }
 
-/* ===== แอนิเมชัน ===== */
-@keyframes highlight {
-  0% { background-color: #d4edda; }
-  50% { background-color: #c3e6cb; }
-  100% { background-color: #d4edda; }
+/* ===== Responsive: TV (1920px+) ===== */
+@media (min-width: 1920px) {
+  .brand-title { font-size: 2.8em; }
+  .brand-date { font-size: 1.3em; }
+  .clock-time { font-size: 4.5em; }
+  .logo-mark { width: 64px; height: 64px; }
+  .logo-mark svg { width: 34px; height: 34px; }
+
+  .card-body { padding: 26px 36px; gap: 40px; }
+  .time-start, .time-end { font-size: 2.2em; }
+  .card-title { font-size: 2.4em; }
+  .meta-item { font-size: 1.5em; }
+  .meta-item svg { width: 22px; height: 22px; }
+  .badge { font-size: 1.35em; padding: 12px 28px; }
+  .badge-pulse { width: 10px; height: 10px; }
+
+  .summary-label { font-size: 1.3em; }
+  .summary-count { font-size: 1.8em; }
+  .summary-item { padding: 14px 24px; gap: 12px; }
+
+  .meeting-scroll { padding: 24px 56px 14px; }
+  .meeting-list { gap: 14px; }
+  .top-bar { padding: 22px 56px; }
+  .card-accent { width: 6px; }
+  .bottom-bar { font-size: 1.05em; }
 }
 
-/* ===== รองรับการแสดงผลบนอุปกรณ์ต่างๆ (Responsive) ===== */
-@media (max-width: 1200px) {
-  .header {
-    flex-direction: column;
-    gap: 15px;
+/* ===== Responsive: Large TV (2560px+) ===== */
+@media (min-width: 2560px) {
+  .brand-title { font-size: 3.5em; }
+  .clock-time { font-size: 5.5em; }
+  .card-title { font-size: 3em; }
+  .time-start, .time-end { font-size: 2.6em; }
+  .meta-item { font-size: 1.8em; }
+  .meta-item svg { width: 26px; height: 26px; }
+  .badge { font-size: 1.7em; padding: 14px 32px; }
+  .card-body { padding: 30px 44px; gap: 48px; }
+  .meeting-list { gap: 18px; }
+  .summary-label { font-size: 1.5em; }
+  .summary-count { font-size: 2.2em; }
+}
+
+/* ===== Responsive: Tablet landscape (1024-1366px) ===== */
+@media (max-width: 1366px) {
+  .top-bar { padding: 14px 24px; }
+  .brand-title { font-size: 1.5em; }
+  .clock-time { font-size: 2.4em; }
+  .meeting-scroll { padding: 14px 24px 8px; }
+  .card-body { padding: 16px 20px; gap: 20px; }
+  .card-title { font-size: 1.4em; }
+  .time-start, .time-end { font-size: 1.3em; }
+}
+
+/* ===== Responsive: Tablet portrait (768-1024px) ===== */
+@media (max-width: 1024px) {
+  .top-bar {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 20px;
   }
 
-  .header h1 {
-    font-size: 2rem;
-  }
+  .top-bar-left { order: 1; }
+  .clock-display { order: 3; width: 100%; justify-content: center; padding-top: 4px; }
+  .top-bar-right { order: 2; }
+
+  .brand-title { font-size: 1.3em; }
+  .clock-time { font-size: 2em; }
+
+  .meeting-scroll { padding: 12px 16px 8px; }
+  .card-body { flex-wrap: wrap; padding: 14px 16px; gap: 12px; }
+  .card-time { flex-direction: row; gap: 8px; min-width: unset; }
+  .time-arrow { transform: rotate(-90deg); width: 14px; height: 14px; margin: 0; }
+  .card-info { width: 100%; order: 3; }
+  .card-status { order: 2; }
+
+  .summary-bar { gap: 10px; }
+  .summary-item { padding: 8px 14px; }
 }
 
-@media (max-width: 992px) {
-  .meeting-table th, .meeting-table td {
-    padding: 10px;
-  }
-
-  .current-time {
-    font-size: 1.2rem;
-  }
-}
-
+/* ===== Responsive: Small tablet / phone (< 768px) ===== */
 @media (max-width: 768px) {
-  .room-options {
-    flex-direction: column;
-  }
+  .top-bar { padding: 10px 14px; }
+  .logo-mark { width: 40px; height: 40px; border-radius: 10px; }
+  .logo-mark svg { width: 22px; height: 22px; }
+  .brand-title { font-size: 1.15em; }
+  .brand-date { font-size: 0.85em; }
+  .clock-time { font-size: 1.7em; }
+  .icon-btn { width: 40px; height: 40px; }
 
-  .room-option {
-    width: 100%;
-  }
+  .meeting-scroll { padding: 10px 12px 6px; }
+  .meeting-list { gap: 8px; }
 
-  .meeting-table {
-    display: block;
-    overflow-x: auto;
-    font-size: 0.9em;
-  }
+  .card-body { padding: 12px 14px; gap: 10px; }
+  .card-title { font-size: 1.15em; }
+  .time-start, .time-end { font-size: 1.1em; }
+  .meta-item { font-size: 0.9em; }
+  .badge { font-size: 0.85em; padding: 6px 14px; }
 
-  .meeting-table th:nth-child(3),
-  .meeting-table td:nth-child(3) {
-    display: none;
-  }
-
-  .header {
-    flex-direction: column;
-  }
-
-  .filter-button {
-    margin-top: 10px;
-  }
+  .filter-inner { padding: 14px 16px; }
+  .chip { padding: 8px 14px; font-size: 0.9em; }
 }
 
-@media (max-width: 576px) {
-  .header h1 {
-    font-size: 1.5rem;
-  }
-
-  .filter-button, .fullscreen-button {
-    font-size: 0.8rem;
-    padding: 6px 10px;
-  }
-
-  .filter-icon, .fullscreen-icon {
-    width: 16px;
-    height: 16px;
-  }
-
-  .meeting-table th:nth-child(4),
-  .meeting-table td:nth-child(4) {
-    display: none;
-  }
+/* ===== Fullscreen overrides ===== */
+:fullscreen .display-root,
+:-webkit-full-screen .display-root {
+  border-radius: 0;
 }
 </style>
