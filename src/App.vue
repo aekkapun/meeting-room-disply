@@ -1,5 +1,6 @@
 <template>
   <div class="display-root" ref="containerRef">
+    <div class="dlt-stripe"></div>
     <!-- Animated background -->
     <div class="bg-layer">
       <div class="bg-orb bg-orb-1"></div>
@@ -12,13 +13,24 @@
     <header class="top-bar">
       <div class="top-bar-left">
         <div class="logo-mark">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="16" rx="2" />
-            <path d="M3 10h18" />
-            <path d="M9 4v6" />
+          <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <rect x="14" y="16" width="36" height="34" rx="7" stroke="currentColor" stroke-width="3" />
+            <rect x="14" y="16" width="36" height="9" rx="4.5" fill="currentColor" />
+            <rect x="22" y="11" width="3.5" height="9" rx="1.75" fill="currentColor" />
+            <rect x="38.5" y="11" width="3.5" height="9" rx="1.75" fill="currentColor" />
+            <g fill="currentColor" opacity="0.45">
+              <rect x="20" y="30" width="7" height="6" rx="2" />
+              <rect x="29.5" y="30" width="7" height="6" rx="2" />
+              <rect x="20" y="39" width="7" height="6" rx="2" />
+              <rect x="29.5" y="39" width="7" height="6" rx="2" />
+              <rect x="39" y="39" width="7" height="6" rx="2" />
+            </g>
+            <rect x="37.5" y="28.5" width="10" height="9" rx="3" fill="#ed1c24" />
+            <path d="M40.3 33.2l1.6 1.6 3.1-3.3" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
         <div class="brand">
+          <p class="brand-org">กรมการขนส่งทางบก</p>
           <h1 class="brand-title">ตารางการประชุม</h1>
           <p class="brand-date">{{ dateDisplay }}</p>
         </div>
@@ -189,7 +201,7 @@
     <footer class="bottom-bar">
       <span>อัพเดทล่าสุด: {{ lastUpdated }}</span>
       <span class="footer-sep">|</span>
-      <span>CC: Little Boy</span>
+      <span>ระบบจองห้องประชุม · กรมการขนส่งทางบก</span>
     </footer>
   </div>
 </template>
@@ -238,37 +250,32 @@ const dateDisplay = ref('');
 const timeDisplay = ref('');
 const lastUpdated = ref('');
 
-// ข้อมูลการประชุม
+// ข้อมูลการประชุม — ดึงจาก Digital Signage API ของระบบจองห้องประชุม
+// ตั้งค่าได้ด้วย VITE_SIGNAGE_API / VITE_SIGNAGE_KEY (ดู .env.example)
 const meetings = ref([]);
 const loading = ref(true);
 const error = ref(null);
-const apiUrl = ref('https://tpms.dlt.go.th/api-meet-reserve/api');
 
-const fetchRooms = async () => {
-  try {
-    const response = await fetch(`${apiUrl.value}/rooms`);
-    if (!response.ok) throw new Error('การเชื่อมต่อ API ล้มเหลว');
-    const data = await response.json();
-    availableRooms.value = data;
-    loadRoomPreferences();
-    if (selectedRoomIds.value.length === 0) {
-      selectAllRooms();
-    }
-  } catch (err) {
-    availableRooms.value = [
-      { id: 'A', name: 'ห้องประชุม A' },
-    ];
+const apiUrl = import.meta.env.VITE_SIGNAGE_API || 'https://it-asset.dlt.go.th/meet-reserve/api/signage';
+const apiKey = import.meta.env.VITE_SIGNAGE_KEY || '';
+const refreshIntervalMs = Number(import.meta.env.VITE_REFRESH_SECONDS || 60) * 1000;
+
+const apiFetch = async (path) => {
+  const response = await fetch(`${apiUrl}${path}`, {
+    headers: apiKey ? { 'X-Signage-Key': apiKey } : {},
+  });
+  if (!response.ok) {
+    throw new Error(response.status === 401
+      ? 'คีย์สำหรับจอแสดงผลไม่ถูกต้อง'
+      : `การเชื่อมต่อ API ล้มเหลว (${response.status})`);
   }
+  return response.json();
 };
 
 const showRoomFilter = ref(false);
-const availableRooms = ref([
-  { id: 'A', name: 'ห้องประชุม A' },
-  { id: 'B', name: 'ห้องประชุม B' },
-  { id: 'C', name: 'ห้องประชุม C' },
-  { id: 'D', name: 'ห้องประชุม D' },
-  { id: 'E', name: 'ห้องประชุม E' },
-]);
+const availableRooms = ref([]);
+// โหลดห้องสำเร็จแล้วหรือยัง — กันไม่ให้ตัวเลือกของผู้ใช้ถูกเขียนทับตอน refresh
+const roomsLoaded = ref(false);
 const selectedRoomIds = ref([]);
 
 const filteredMeetings = computed(() => {
@@ -351,32 +358,41 @@ const getRoomName = (roomId) => {
   return room ? room.name : roomId;
 };
 
+/**
+ * /rooms ส่งทั้งรายชื่อห้องและตารางของแต่ละห้องมาในครั้งเดียว
+ * จึงเรียกแค่ endpoint เดียวต่อรอบ refresh
+ */
 const fetchMeetings = async () => {
-  loading.value = true;
+  if (meetings.value.length === 0) loading.value = true;
   error.value = null;
   try {
-    const roomParams = selectedRoomIds.value.join(',');
-    const response = await fetch(`${apiUrl.value}/meetings?rooms=${roomParams}`);
-    if (!response.ok) throw new Error('การเชื่อมต่อ API ล้มเหลว');
-    const data = await response.json();
-    meetings.value = data;
+    const { data } = await apiFetch('/rooms');
+
+    availableRooms.value = data.map((room) => ({ id: room.id, name: room.name }));
+    if (!roomsLoaded.value) {
+      roomsLoaded.value = true;
+      loadRoomPreferences();
+      if (selectedRoomIds.value.length === 0) selectAllRooms();
+    }
+
+    meetings.value = data.flatMap((room) => room.meetings.map((m) => ({
+      id: m.id,
+      title: m.title,
+      roomId: m.room_id,
+      roomName: m.room_name,
+      startTime: m.start_time,
+      endTime: m.end_time,
+      organizer: m.organizer,
+      orgName: m.org_name,
+      status: m.status,
+    })));
     meetings.value.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
     lastUpdated.value = timeDisplay.value;
   } catch (err) {
     console.error('Error fetching meetings:', err);
-    error.value = 'ไม่สามารถโหลดข้อมูลการประชุมได้ กรุณาลองใหม่อีกครั้ง';
-    if (process.env.NODE_ENV === 'development') {
-      const now = new Date();
-      const todayDate = now.toISOString().split('T')[0];
-      meetings.value = [
-        { id: 1, title: 'ประชุมทีมการตลาด', roomId: 'A', startTime: `${todayDate}T09:00:00`, endTime: `${todayDate}T10:00:00`, organizer: 'คุณวิชัย สุขสมบัติ', status: getMeetingStatus(`${todayDate}T09:00:00`, `${todayDate}T10:00:00`) },
-        { id: 2, title: 'การวางแผนโครงการใหม่', roomId: 'B', startTime: `${todayDate}T10:30:00`, endTime: `${todayDate}T11:30:00`, organizer: 'คุณสมหญิง ใจดี', status: getMeetingStatus(`${todayDate}T10:30:00`, `${todayDate}T11:30:00`) },
-        { id: 3, title: 'ประชุมฝ่ายขาย', roomId: 'C', startTime: `${todayDate}T13:00:00`, endTime: `${todayDate}T14:30:00`, organizer: 'คุณสมชาย มั่นคง', status: getMeetingStatus(`${todayDate}T13:00:00`, `${todayDate}T14:30:00`) },
-        { id: 4, title: 'ประชุมติดตามความคืบหน้า', roomId: 'A', startTime: `${todayDate}T15:00:00`, endTime: `${todayDate}T16:00:00`, organizer: 'คุณนภา สมบูรณ์', status: getMeetingStatus(`${todayDate}T15:00:00`, `${todayDate}T16:00:00`) },
-        { id: 5, title: 'ประชุมสรุปงานประจำวัน', roomId: 'D', startTime: `${todayDate}T16:30:00`, endTime: `${todayDate}T17:30:00`, organizer: 'คุณประเสริฐ รักงาน', status: getMeetingStatus(`${todayDate}T16:30:00`, `${todayDate}T17:30:00`) },
-        { id: 6, title: 'ประชุมวางแผนงบประมาณ', roomId: 'E', startTime: `${todayDate}T14:00:00`, endTime: `${todayDate}T16:00:00`, organizer: 'คุณสุชาติ การเงิน', status: getMeetingStatus(`${todayDate}T14:00:00`, `${todayDate}T16:00:00`) },
-      ];
-      error.value = null;
+    // ระหว่าง refresh ถ้าดึงไม่สำเร็จ ให้คงข้อมูลเดิมบนจอไว้ แทนที่จะขึ้นจอว่าง
+    if (meetings.value.length === 0) {
+      error.value = err.message || 'ไม่สามารถโหลดข้อมูลการประชุมได้';
     }
   } finally {
     loading.value = false;
@@ -424,12 +440,10 @@ onMounted(() => {
   document.addEventListener('fullscreenchange', handleFullscreenChange);
   document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
   document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-  loadRoomPreferences();
-  fetchRooms();
   updateClock();
   timeInterval = setInterval(updateClock, 1000);
   fetchMeetings();
-  refreshInterval = setInterval(fetchMeetings, 5 * 60 * 1000);
+  refreshInterval = setInterval(fetchMeetings, refreshIntervalMs);
   setTimeout(() => { startAutoScroll(); }, 500);
 });
 
@@ -446,26 +460,27 @@ watch(selectedRoomIds, () => { fetchMeetings(); });
 </script>
 
 <style>
-/* ===== Design Tokens — Light Theme ===== */
+/* ===== Design Tokens — Navy (ระบบจองห้องประชุม / กรมการขนส่งทางบก) ===== */
 :root {
-  --bg-deep: #f0f2f8;
-  --bg-surface: rgba(255, 255, 255, 0.88);
-  --bg-card: rgba(255, 255, 255, 0.75);
-  --bg-glass: rgba(99, 102, 241, 0.04);
-  --border-subtle: rgba(0, 0, 0, 0.08);
-  --border-glow: rgba(99, 102, 241, 0.35);
-  --accent: #6366f1;
-  --accent-bright: #4f46e5;
-  --accent-dim: #4338ca;
-  --green: #059669;
-  --green-dim: rgba(5, 150, 105, 0.10);
-  --yellow: #d97706;
-  --yellow-dim: rgba(217, 119, 6, 0.10);
-  --muted: rgba(0, 0, 0, 0.30);
-  --text: #1e293b;
-  --text-secondary: #64748b;
-  --radius: 16px;
-  --radius-sm: 10px;
+  --bg-deep: #0a1530;
+  --bg-surface: rgba(255, 255, 255, 0.07);
+  --bg-card: rgba(255, 255, 255, 0.06);
+  --bg-glass: rgba(255, 255, 255, 0.04);
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --border-glow: rgba(93, 137, 217, 0.45);
+  --accent: #5d89d9;
+  --accent-bright: #8fb0ea;
+  --accent-dim: #1d3a82;
+  --dlt-red: #ed1c24;
+  --green: #34d399;
+  --green-dim: rgba(52, 211, 153, 0.14);
+  --yellow: #fbbf24;
+  --yellow-dim: rgba(251, 191, 36, 0.14);
+  --muted: rgba(255, 255, 255, 0.35);
+  --text: #f8fafc;
+  --text-secondary: rgba(255, 255, 255, 0.62);
+  --radius: 18px;
+  --radius-sm: 12px;
 }
 
 html, body, #app {
@@ -485,9 +500,9 @@ html, body, #app {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: var(--bg-deep);
+  background: linear-gradient(140deg, #0a1530 0%, #12234d 55%, #182f66 100%);
   color: var(--text);
-  font-family: 'Sarabun', 'Prompt', sans-serif;
+  font-family: 'Noto Sans Thai', 'Noto Sans', sans-serif;
 }
 
 /* ===== Animated background ===== */
@@ -503,14 +518,14 @@ html, body, #app {
   position: absolute;
   border-radius: 50%;
   filter: blur(120px);
-  opacity: 0.25;
+  opacity: 0.40;
   animation: float 20s ease-in-out infinite;
 }
 
 .bg-orb-1 {
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, #a5b4fc 0%, transparent 70%);
+  background: radial-gradient(circle, #1d3a82 0%, transparent 70%);
   top: -15%;
   left: -10%;
   animation-delay: 0s;
@@ -519,7 +534,7 @@ html, body, #app {
 .bg-orb-2 {
   width: 500px;
   height: 500px;
-  background: radial-gradient(circle, #c4b5fd 0%, transparent 70%);
+  background: radial-gradient(circle, #3563c4 0%, transparent 70%);
   bottom: -20%;
   right: -8%;
   animation-delay: -7s;
@@ -528,7 +543,7 @@ html, body, #app {
 .bg-orb-3 {
   width: 350px;
   height: 350px;
-  background: radial-gradient(circle, #67e8f9 0%, transparent 70%);
+  background: radial-gradient(circle, #ed1c24 0%, transparent 70%);
   top: 40%;
   left: 50%;
   animation-delay: -14s;
@@ -544,16 +559,16 @@ html, body, #app {
 .bg-grid {
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(99, 102, 241, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(99, 102, 241, 0.04) 1px, transparent 1px);
-  background-size: 60px 60px;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.10) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.25));
 }
 
 /* ===== Top bar ===== */
 .top-bar {
   position: relative;
   z-index: 10;
+  margin-top: 4px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -571,32 +586,47 @@ html, body, #app {
   gap: 16px;
 }
 
+.dlt-stripe {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  z-index: 20;
+  background: linear-gradient(90deg, #1d3a82 0%, #1d3a82 70%, var(--dlt-red) 70%, var(--dlt-red) 100%);
+}
+
 .logo-mark {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #1d3a82, #0a1530);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 6px 20px rgba(10, 21, 48, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .logo-mark svg {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   color: white;
+}
+
+.brand-org {
+  font-size: 0.78em;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--dlt-red);
+  margin: 0 0 2px;
 }
 
 .brand-title {
   font-size: 2.2em;
-  font-weight: 700;
+  font-weight: 800;
   margin: 0;
-  background: linear-gradient(135deg, #1e293b 30%, var(--accent));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  line-height: 1.2;
+  color: var(--text);
+  line-height: 1.15;
 }
 
 .brand-date {
@@ -617,7 +647,7 @@ html, body, #app {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
-  background: linear-gradient(135deg, var(--accent-dim), #7c3aed);
+  background: linear-gradient(135deg, var(--accent-dim), #3563c4);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -627,7 +657,7 @@ html, body, #app {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #059669;
+  background: var(--green);
   box-shadow: 0 0 8px rgba(5, 150, 105, 0.4);
   animation: pulse 2s ease-in-out infinite;
 }
@@ -664,9 +694,9 @@ html, body, #app {
 }
 
 .icon-btn:hover {
-  background: rgba(99, 102, 241, 0.10);
+  background: rgba(93, 137, 217, 0.10);
   border-color: var(--accent);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 4px 12px rgba(93, 137, 217, 0.15);
   transform: translateY(-1px);
 }
 
@@ -724,7 +754,7 @@ html, body, #app {
 }
 
 .chip.active {
-  background: rgba(99, 102, 241, 0.10);
+  background: rgba(93, 137, 217, 0.10);
   border-color: var(--accent);
   color: var(--accent-dim);
 }
@@ -757,13 +787,13 @@ html, body, #app {
 }
 
 .action-btn.primary {
-  background: linear-gradient(135deg, var(--accent), #7c3aed);
+  background: linear-gradient(135deg, #1d3a82, #3563c4);
   color: white;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.20);
+  box-shadow: 0 4px 14px rgba(10, 21, 48, 0.45);
 }
 
 .action-btn.primary:hover {
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.30);
+  box-shadow: 0 6px 20px rgba(93, 137, 217, 0.30);
   transform: translateY(-1px);
 }
 
@@ -774,7 +804,7 @@ html, body, #app {
 }
 
 .action-btn.secondary:hover {
-  background: rgba(99, 102, 241, 0.08);
+  background: rgba(93, 137, 217, 0.08);
   border-color: var(--accent);
 }
 
@@ -885,7 +915,7 @@ html, body, #app {
 }
 
 .summary-item.ongoing .summary-dot {
-  background: #059669;
+  background: var(--green);
   box-shadow: 0 0 8px rgba(5, 150, 105, 0.4);
 }
 
@@ -894,7 +924,7 @@ html, body, #app {
 }
 
 .summary-item.upcoming .summary-dot {
-  background: #d97706;
+  background: var(--yellow);
   box-shadow: 0 0 6px rgba(217, 119, 6, 0.3);
 }
 
@@ -934,7 +964,7 @@ html, body, #app {
 .meeting-card:hover {
   border-color: var(--border-glow);
   transform: translateX(4px);
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.10);
+  box-shadow: 0 4px 20px rgba(93, 137, 217, 0.10);
 }
 
 /* Status-specific card styles */
@@ -945,8 +975,8 @@ html, body, #app {
 }
 
 .meeting-card.upcoming {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, var(--bg-card) 100%);
-  border-color: rgba(99, 102, 241, 0.18);
+  background: linear-gradient(135deg, rgba(93, 137, 217, 0.05) 0%, var(--bg-card) 100%);
+  border-color: rgba(93, 137, 217, 0.18);
 }
 
 .meeting-card.completed {
@@ -1012,7 +1042,7 @@ html, body, #app {
 .time-progress {
   width: 100%;
   height: 3px;
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 99px;
   margin-top: 6px;
   overflow: hidden;
@@ -1092,22 +1122,22 @@ html, body, #app {
 }
 
 .badge-upcoming {
-  background: rgba(217, 119, 6, 0.08);
-  color: #b45309;
-  border: 1px solid rgba(217, 119, 6, 0.25);
+  background: var(--yellow-dim);
+  color: var(--yellow);
+  border: 1px solid rgba(251, 191, 36, 0.35);
 }
 
 .badge-completed {
-  background: rgba(0, 0, 0, 0.04);
-  color: #94a3b8;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .badge-pulse {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #059669;
+  background: var(--green);
   box-shadow: 0 0 6px rgba(5, 150, 105, 0.4);
   animation: pulse 2s ease-in-out infinite;
 }
